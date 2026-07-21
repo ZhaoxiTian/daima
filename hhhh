@@ -1,0 +1,99 @@
+"""绘制二维正态分布的概率密度曲面和等高线图。
+
+依赖：numpy、matplotlib
+运行：python plot_bivariate_normal.py
+"""
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+def bivariate_normal_pdf(
+    x: np.ndarray,
+    y: np.ndarray,
+    mean: np.ndarray,
+    covariance: np.ndarray,
+) -> np.ndarray:
+    """计算二维正态分布在网格点 (x, y) 上的概率密度。"""
+    covariance = np.asarray(covariance, dtype=float)
+    mean = np.asarray(mean, dtype=float)
+
+    if mean.shape != (2,):
+        raise ValueError("mean 必须是长度为 2 的数组")
+    if covariance.shape != (2, 2):
+        raise ValueError("covariance 必须是 2x2 矩阵")
+    if not np.allclose(covariance, covariance.T):
+        raise ValueError("covariance 必须是对称矩阵")
+    if np.linalg.det(covariance) <= 0:
+        raise ValueError("covariance 必须是正定矩阵")
+
+    inverse = np.linalg.inv(covariance)
+    determinant = np.linalg.det(covariance)
+    dx = x - mean[0]
+    dy = y - mean[1]
+
+    # (x - μ)^T Σ^{-1} (x - μ)，对网格中的每个点向量化计算。
+    exponent = -0.5 * (
+        inverse[0, 0] * dx**2
+        + 2 * inverse[0, 1] * dx * dy
+        + inverse[1, 1] * dy**2
+    )
+    normalization = 1 / (2 * np.pi * np.sqrt(determinant))
+    return normalization * np.exp(exponent)
+
+
+def main() -> None:
+    # 均值向量 μ 和协方差矩阵 Σ，可以按需修改。
+    mean = np.array([0.0, 0.0])
+    covariance = np.array([[1.0, 0.6], [0.6, 1.5]])
+
+    x_values = np.linspace(-4, 4, 160)
+    y_values = np.linspace(-4, 4, 160)
+    x_grid, y_grid = np.meshgrid(x_values, y_values)
+    density = bivariate_normal_pdf(x_grid, y_grid, mean, covariance)
+
+    figure = plt.figure(figsize=(13, 5))
+
+    # 左图：三维概率密度曲面。
+    surface_axis = figure.add_subplot(1, 2, 1, projection="3d")
+    surface = surface_axis.plot_surface(
+        x_grid,
+        y_grid,
+        density,
+        cmap="viridis",
+        linewidth=0,
+        antialiased=True,
+    )
+    surface_axis.set_title("二维正态分布：概率密度曲面")
+    surface_axis.set_xlabel("X")
+    surface_axis.set_ylabel("Y")
+    surface_axis.set_zlabel("密度")
+    surface_axis.view_init(elev=30, azim=-125)
+    figure.colorbar(surface, ax=surface_axis, shrink=0.75, pad=0.12)
+
+    # 右图：俯视等高线，颜色越亮表示密度越高。
+    contour_axis = figure.add_subplot(1, 2, 2)
+    filled_contours = contour_axis.contourf(
+        x_grid, y_grid, density, levels=18, cmap="viridis"
+    )
+    contour_axis.contour(
+        x_grid, y_grid, density, levels=10, colors="white", linewidths=0.6
+    )
+    contour_axis.scatter(*mean, color="red", marker="x", s=80, label="均值 μ")
+    contour_axis.set_title("二维正态分布：等高线图")
+    contour_axis.set_xlabel("X")
+    contour_axis.set_ylabel("Y")
+    contour_axis.set_aspect("equal")
+    contour_axis.legend()
+    figure.colorbar(filled_contours, ax=contour_axis, label="概率密度")
+
+    figure.suptitle(
+        f"μ = {mean.tolist()}, Σ = {covariance.tolist()}",
+        fontsize=11,
+    )
+    figure.tight_layout()
+    plt.show()
+
+
+if __name__ == "__main__":
+    main()
